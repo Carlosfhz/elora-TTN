@@ -18,7 +18,6 @@
  *                                                              <alessandro.aimi@cnam.fr>
  * Author of this implementation: Carlos Fernandez Hernandez
  *                                <carlos.fernandez-hernandez@insa-lyon.fr>
- * Received support from the Project ANR-21-CE25-0002-01
  */
 
 #include "TTN-helper.h"
@@ -89,6 +88,17 @@ TTNHelper::CloseConnection(int signal) const
     /* Delete all ED */
     NS_LOG_DEBUG("Starting Delete Devices");
 
+    for(int j = 0; j<m_session.nGateway;j++){
+        int n_gw = j+1;
+        if (DELETE("/api/v3/gateways/gw-" + std::to_string((unsigned)n_gw), reply) == EXIT_FAILURE)
+        {
+            NS_LOG_ERROR("Unable to delete gw-"+std::to_string((unsigned)n_gw)+", got reply: " << reply);
+        }
+        if (DELETE("/api/v3/gateways/gw-" + std::to_string((unsigned)n_gw)+"/purge", reply) == EXIT_FAILURE)
+                {
+            NS_LOG_ERROR("Unable to purge gw-"+std::to_string((unsigned)n_gw)+", got reply: " << reply);
+        }  } 
+ 
 
      for (int i = 0; i < m_session.nDevices; i++) {
         int n_ed = i + m_session.nGateway+1; 
@@ -107,17 +117,7 @@ TTNHelper::CloseConnection(int signal) const
         }
     } 
 
-        for(int j = 0; j<m_session.nGateway;j++){
-        int n_gw = j+1;
-        if (DELETE("/api/v3/gateways/gw-" + std::to_string((unsigned)n_gw), reply) == EXIT_FAILURE)
-        {
-            NS_LOG_ERROR("Unable to delete gw-"+std::to_string((unsigned)n_gw)+", got reply: " << reply);
-        }
-        if (DELETE("/api/v3/gateways/gw-" + std::to_string((unsigned)n_gw)+"/purge", reply) == EXIT_FAILURE)
-                {
-            NS_LOG_ERROR("Unable to purge gw-"+std::to_string((unsigned)n_gw)+", got reply: " << reply);
-        }  } 
- 
+
 
 
   
@@ -336,7 +336,7 @@ TTNHelper::NewDevice(Ptr<Node> node) const
                             "\"867900000\""
                         "],"
                         "\"desired_rx1_delay\": \"RX_DELAY_1\","
-                        "\"status_count_periodicity\": 0,"
+                        "\"status_count_periodicity\": 0," //number of uplinks after DevStatusReq is sent to ED
                         "\"status_time_periodicity\": \"0s\","
                         "\"adr\": {\"disabled\": {}}"
 

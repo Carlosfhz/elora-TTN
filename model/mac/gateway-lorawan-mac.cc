@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2017 University of Padova
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Davide Magrin <magrinda@dei.unipd.it>
  *
@@ -12,10 +23,9 @@
 
 #include "gateway-lorawan-mac.h"
 
-#include "lora-frame-header.h"
-#include "lorawan-mac-header.h"
-
 #include "ns3/log.h"
+#include "ns3/lora-frame-header.h"
+#include "ns3/lorawan-mac-header.h"
 
 namespace ns3
 {
@@ -64,6 +74,31 @@ GatewayLorawanMac::Send(Ptr<Packet> packet)
     NS_LOG_DEBUG("DR: " << unsigned(dataRate));
     NS_LOG_DEBUG("SF: " << unsigned(m_txParams.sf));
     NS_LOG_DEBUG("BW: " << m_txParams.bandwidthHz << " Hz");
+    // Make sure we can transmit this packet agregado por mi
+/*     if (m_channelManager->GetWaitingTime(Create<LogicalChannel>(frequency)) > Time(0))
+    {
+        // We cannot send now!
+        NS_LOG_WARN("Trying to send a packet but Duty Cycle won't allow it. Aborting.");
+        
+
+
+        m_cannotSendBecauseDutyCycle(packet);//agregado por mi
+
+
+        // Fire trace source
+        if(frequency==869525000.0){//downlink in Rx2 just to count it
+
+            m_sentNewPacket(packet,12);
+
+        }else{//downlink in Rx1
+            m_sentNewPacket(packet,11);
+
+        }
+  
+
+        return;
+    }//agregado por mi
+ */
 
     // Find the transmission power for the desired frequency (always max possible)
     double txPower = m_channelManager->GetTxPowerForChannel(Create<LogicalChannel>(frequency));
@@ -71,6 +106,7 @@ GatewayLorawanMac::Send(Ptr<Packet> packet)
 
     // Get the duration
     Time duration = m_phy->GetTimeOnAir(packet, m_txParams);
+    NS_LOG_INFO("DOWNLINK-Tx");
     NS_LOG_DEBUG("Duration: " << duration.GetSeconds());
     // Add the event to the channelHelper to keep track of duty cycle
     m_channelManager->AddEvent(duration, Create<LogicalChannel>(frequency));
@@ -78,12 +114,20 @@ GatewayLorawanMac::Send(Ptr<Packet> packet)
     // Send the packet to the PHY layer to send it on the channel
     m_phy->Send(packet, m_txParams, frequency, txPower);
     // Fire trace source
-    m_sentNewPacket(packet);
+    if(frequency==869525000.0){//downlink in Rx2
+
+        m_sentNewPacket(packet,2);
+
+    }else{//downlink in Rx1
+        m_sentNewPacket(packet,1);
+
+    }
 }
 
 void
 GatewayLorawanMac::TxFinished(Ptr<const Packet> packet)
 {
+    
     NS_LOG_FUNCTION_NOARGS();
 }
 
@@ -96,7 +140,7 @@ GatewayLorawanMac::IsTransmitting()
 void
 GatewayLorawanMac::Receive(Ptr<const Packet> packet)
 {
-    NS_LOG_FUNCTION(this << packet);
+    //NS_LOG_FUNCTION(this << packet);
 
     // Make a copy of the packet to work on
     Ptr<Packet> packetCopy = packet->Copy();
@@ -112,13 +156,13 @@ GatewayLorawanMac::Receive(Ptr<const Packet> packet)
             m_receiveCallback(this, packetCopy);
         }
 
-        NS_LOG_DEBUG("Received packet: " << packet);
+        //NS_LOG_DEBUG("Received packet: " << packet);
 
         m_receivedPacket(packet);
     }
     else
     {
-        NS_LOG_DEBUG("Not forwarding downlink message to NetDevice");
+       // NS_LOG_DEBUG("Not forwarding downlink message to NetDevice");
     }
 }
 

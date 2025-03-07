@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2017 University of Padova
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Davide Magrin <magrinda@dei.unipd.it>
  *
@@ -569,7 +580,7 @@ RxParamSetupReq::Serialize(Buffer::Iterator& start) const
     start.WriteU8(GetCIDFromMacCommand(m_commandType));
     // Data serialization
     start.WriteU8((m_rx1DrOffset & 0b111) << 4 | (m_rx2DataRate & 0b1111));
-    auto encodedFrequency = uint32_t(m_frequency / 100);
+    uint32_t encodedFrequency = uint32_t(m_frequency / 100);
     NS_LOG_DEBUG(unsigned(encodedFrequency));
     NS_LOG_DEBUG(std::bitset<32>(encodedFrequency));
     start.WriteU8((encodedFrequency & 0xff0000) >> 16); // Most significant byte
@@ -844,7 +855,7 @@ NewChannelReq::Serialize(Buffer::Iterator& start) const
     start.WriteU8(GetCIDFromMacCommand(m_commandType));
 
     start.WriteU8(m_chIndex);
-    auto encodedFrequency = uint32_t(m_frequency / 100);
+    uint32_t encodedFrequency = uint32_t(m_frequency / 100);
     start.WriteU8((encodedFrequency & 0xff0000) >> 16);
     start.WriteU8((encodedFrequency & 0xff00) >> 8);
     start.WriteU8(encodedFrequency & 0xff);
@@ -1188,7 +1199,7 @@ DlChannelReq::Serialize(Buffer::Iterator& start) const
     start.WriteU8(GetCIDFromMacCommand(m_commandType));
 
     start.WriteU8(m_chIndex);
-    auto encodedFrequency = uint32_t(m_frequency / 100);
+    uint32_t encodedFrequency = uint32_t(m_frequency / 100);
     start.WriteU8((encodedFrequency & 0xff0000) >> 16);
     start.WriteU8((encodedFrequency & 0xff00) >> 8);
     start.WriteU8(encodedFrequency & 0xff);

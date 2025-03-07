@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2017 University of Padova
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Davide Magrin <magrinda@dei.unipd.it>
  *
@@ -13,11 +24,10 @@
 #ifndef LORAWAN_HELPER_H
 #define LORAWAN_HELPER_H
 
-#include "lora-packet-tracker.h"
-#include "lora-phy-helper.h"
-#include "lorawan-mac-helper.h"
-
 #include "ns3/lora-net-device.h"
+#include "ns3/lora-packet-tracker.h"
+#include "ns3/lora-phy-helper.h"
+#include "ns3/lorawan-mac-helper.h"
 #include "ns3/net-device-container.h"
 #include "ns3/net-device.h"
 #include "ns3/node-container.h"

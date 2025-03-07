@@ -18,7 +18,6 @@
  *                                                              <alessandro.aimi@cnam.fr>
  * Author of this implementation: Carlos Fernandez Hernandez
  *                                <carlos.fernandez-hernandez@insa-lyon.fr>
- * Received support from the Project ANR-21-CE25-0002-01    
  */
 
 #ifndef TTN_HELPER_H

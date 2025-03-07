@@ -265,7 +265,7 @@ UdpForwarder::Configure()
     /* from global_conf.json */
 
     /* CONFIGURATIONS FROM parse_SX1301_configuration () */
-    antenna_gain = 2;
+    antenna_gain = 0;//0 for tts 
     NS_LOG_INFO("antenna_gain " << (unsigned)antenna_gain << " dBi");
 
     /* set configuration for tx gains */

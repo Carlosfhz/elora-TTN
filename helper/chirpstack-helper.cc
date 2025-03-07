@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2022 Orange SA
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Alessandro Aimi <alessandro.aimi@orange.com>
  *                         <alessandro.aimi@cnam.fr>
@@ -30,11 +41,17 @@ ChirpstackHelper::ChirpstackHelper()
 {
     m_url = "http://localhost:8090/";
 
-    m_token = "";
+    m_token =         "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjaGlycHN0YWNrIiwiaXNzIjoiY2hpcnBzdGFjayIsInN1YiI6ImE4YjU4M2JhLWJjNDAtNDdjZC05NTc0LTQ5NTI3NmY2MmU3YyIsInR5cCI6ImtleSJ9.dsqoj6eEhmQT84Q-EMKwy7RayeakrdlCABxUSHxPXMw";
+
 
     /* Initialize session keys */
     m_session.netKey = "2b7e151628aed2a6abf7158809cf4f3c";
     m_session.appKey = "00000000000000000000000000000000";
+}
+
+ChirpstackHelper::~ChirpstackHelper()
+{
+    CloseConnection(EXIT_SUCCESS);
 }
 
 int
@@ -63,21 +80,15 @@ ChirpstackHelper::InitConnection(const str address, uint16_t port, const str tok
 }
 
 void
-ChirpstackHelper::CloseConnection(int signal)
+ChirpstackHelper::CloseConnection(int signal) const
 {
-    /* Return immediatly if connection was not initialized to begin with */
-    if (m_session.tenantId.empty())
-    {
-        return;
-    }
+    str reply;
 
     /* Remove tentant */
-    DeleteTenant(m_session.tenantId);
-
-    /* Wipe session data */
-    m_session.tenantId.clear();
-    m_session.devProfId.clear();
-    m_session.appId.clear();
+    if (DELETE("/api/tenants/" + m_session.tenantId, reply) == EXIT_FAILURE)
+    {
+        NS_LOG_ERROR("Unable to unregister tenant, got reply: " << reply);
+    }
 
     /* Terminate curl */
     curl_global_cleanup();
@@ -98,82 +109,12 @@ ChirpstackHelper::Register(Ptr<Node> node) const
 int
 ChirpstackHelper::Register(NodeContainer c) const
 {
-    for (auto i = c.Begin(); i != c.End(); ++i)
+    for (NodeContainer::Iterator i = c.Begin(); i != c.End(); ++i)
     {
         if (RegisterPriv(*i) == EXIT_FAILURE)
         {
             return EXIT_FAILURE;
         }
-    }
-
-    return EXIT_SUCCESS;
-}
-
-int
-ChirpstackHelper::CreateHttpIntegration(const str& encoding, const str& endpoint) const
-{
-    NS_ABORT_MSG_IF(m_session.tenantId.empty(),
-                    "Connection was not initialized before registering device");
-
-    str payload = "{"
-                  "  \"integration\": {"
-                  "    \"encoding\": \"" +
-                  encoding + // JSON or PROTOBUF
-                  "\","
-                  "    \"eventEndpointUrl\": \"" +
-                  endpoint + // e.g. http://http-server:8081
-                  "\","
-                  "    \"headers\": {}"
-                  "  }"
-                  "}";
-
-    str reply;
-    if (POST("/api/applications/" + m_session.appId + "/integrations/http", payload, reply) ==
-        EXIT_FAILURE)
-    {
-        NS_FATAL_ERROR("Unable to register new integration, got reply: " << reply);
-    }
-
-    return EXIT_SUCCESS;
-}
-
-int
-ChirpstackHelper::CreateInfluxDb2Integration(const str& endpoint,
-                                             const str& organization,
-                                             const str& bucket,
-                                             const str& token) const
-{
-    NS_ABORT_MSG_IF(m_session.tenantId.empty(),
-                    "Connection was not initialized before registering device");
-
-    str payload = "{"
-                  "  \"integration\": {"
-                  "    \"bucket\": \"" +
-                  bucket +
-                  "\","
-                  "    \"db\": \"\"," // unused in InfluxDb v2
-                  "    \"endpoint\": \"" +
-                  endpoint +
-                  "\","
-                  "    \"organization\": \"" +
-                  organization +
-                  "\","
-                  "    \"password\": \"\","            // unused in InfluxDb v2
-                  "    \"precision\": \"NS\","         // unused in InfluxDb v2
-                  "    \"retentionPolicyName\": \"\"," // unused in InfluxDb v2
-                  "    \"username\": \"\","            // unused in InfluxDb v2
-                  "    \"token\": \"" +
-                  token +
-                  "\","
-                  "    \"version\": \"INFLUXDB_2\""
-                  "  }"
-                  "}";
-
-    str reply;
-    if (POST("/api/applications/" + m_session.appId + "/integrations/influxdb", payload, reply) ==
-        EXIT_FAILURE)
-    {
-        NS_FATAL_ERROR("Unable to register new integration, got reply: " << reply);
     }
 
     return EXIT_SUCCESS;
@@ -203,26 +144,18 @@ ChirpstackHelper::DoConnect()
     /* Init curl */
     curl_global_init(CURL_GLOBAL_NOTHING);
     /* Create Ns-3 tenant */
-    CreateTenant(m_session.tenant);
+    NewTenant(m_session.tenant);
     /* Create Ns-3 device profile */
-    CreateDeviceProfile(m_session.devProf);
+    NewDeviceProfile(m_session.devProf);
     /* Create Ns-3 application */
-    CreateApplication(m_session.app);
+    NewApplication(m_session.app);
 
     return EXIT_SUCCESS;
 }
 
 int
-ChirpstackHelper::CreateTenant(const str& name)
+ChirpstackHelper::NewTenant(const str& name)
 {
-    /* Clean existing tenants with the same run name */
-    std::vector<str> ids;
-    ListTenantIds(name + "%20" + std::to_string((unsigned)m_run), ids);
-    for (const str& id : ids)
-    {
-        DeleteTenant(id);
-    }
-
     str payload = "{"
                   "  \"tenant\": {"
                   "    \"canHaveGateways\": true,"
@@ -231,7 +164,7 @@ ChirpstackHelper::CreateTenant(const str& name)
                   "    \"maxDeviceCount\": 0,"
                   "    \"maxGatewayCount\": 0,"
                   "    \"name\": \"" +
-                  name + " " + std::to_string((unsigned)m_run) +
+                  name + "-" + std::to_string((unsigned)m_run) +
                   "\","
                   "    \"privateGatewaysDown\": false,"
                   "    \"privateGatewaysUp\": false"
@@ -258,48 +191,7 @@ ChirpstackHelper::CreateTenant(const str& name)
 }
 
 int
-ChirpstackHelper::DeleteTenant(const str& id)
-{
-    str reply;
-    if (DELETE("/api/tenants/" + id, reply) == EXIT_FAILURE)
-    {
-        NS_FATAL_ERROR("Unable to unregister tenant (id: " << id << "), got reply: " << reply);
-    }
-
-    return EXIT_SUCCESS;
-}
-
-int
-ChirpstackHelper::ListTenantIds(const str& search, std::vector<str>& out)
-{
-    str reply;
-    if (GET("/api/tenants?limit=1000&search=" + search, reply) == EXIT_FAILURE)
-    {
-        NS_FATAL_ERROR("Unable to list tenants, got reply: " << reply);
-    }
-
-    JSON_Value* json = nullptr;
-    json = json_parse_string_with_comments(reply.c_str());
-    if (json == nullptr)
-    {
-        NS_FATAL_ERROR("Invalid JSON in list tenant reply: " << reply);
-    }
-
-    JSON_Array* array = json_object_get_array(json_value_get_object(json), "result");
-
-    out.clear();
-    for (size_t i = 0; i < json_array_get_count(array); ++i)
-    {
-        out.emplace_back(json_object_get_string(json_array_get_object(array, i), "id"));
-    }
-
-    json_value_free(json);
-
-    return EXIT_SUCCESS;
-}
-
-int
-ChirpstackHelper::CreateDeviceProfile(const str& name)
+ChirpstackHelper::NewDeviceProfile(const str& name)
 {
     str payload = "{"
                   "  \"deviceProfile\": {"
@@ -381,7 +273,7 @@ ChirpstackHelper::CreateDeviceProfile(const str& name)
 }
 
 int
-ChirpstackHelper::CreateApplication(const str& name)
+ChirpstackHelper::NewApplication(const str& name)
 {
     str payload = "{"
                   "  \"application\": {"
@@ -406,7 +298,7 @@ ChirpstackHelper::CreateApplication(const str& name)
     json = json_parse_string_with_comments(reply.c_str());
     if (json == nullptr)
     {
-        NS_FATAL_ERROR("Invalid JSON in application registration reply: " << reply);
+        NS_FATAL_ERROR("Invalid JSON in device profile registration reply: " << reply);
     }
 
     m_session.appId = json_object_get_string(json_value_get_object(json), "id");
@@ -419,8 +311,6 @@ int
 ChirpstackHelper::RegisterPriv(Ptr<Node> node) const
 {
     NS_LOG_FUNCTION(this << node);
-    NS_ABORT_MSG_IF(m_session.tenantId.empty(),
-                    "Connection was not initialized before registering device");
 
     Ptr<LoraNetDevice> netdev;
     // We assume nodes can have at max 1 LoraNetDevice
@@ -430,11 +320,11 @@ ChirpstackHelper::RegisterPriv(Ptr<Node> node) const
         {
             if (bool(DynamicCast<BaseEndDeviceLorawanMac>(netdev->GetMac())))
             {
-                CreateDevice(node);
+                NewDevice(node);
             }
             else if (bool(DynamicCast<GatewayLorawanMac>(netdev->GetMac())))
             {
-                CreateGateway(node);
+                NewGateway(node);
             }
             else
             {
@@ -450,7 +340,7 @@ ChirpstackHelper::RegisterPriv(Ptr<Node> node) const
 }
 
 int
-ChirpstackHelper::CreateDevice(Ptr<Node> node) const
+ChirpstackHelper::NewDevice(Ptr<Node> node) const
 {
     char eui[17];
     uint64_t id = (m_run << 48) + node->GetId();
@@ -521,7 +411,7 @@ ChirpstackHelper::CreateDevice(Ptr<Node> node) const
 }
 
 int
-ChirpstackHelper::CreateGateway(Ptr<Node> node) const
+ChirpstackHelper::NewGateway(Ptr<Node> node) const
 {
     char eui[17];
     uint64_t id = (m_run << 48) + node->GetId();
@@ -618,52 +508,6 @@ ChirpstackHelper::POST(const str& path, const str& body, str& out) const
 
     out = ss.str();
     NS_LOG_INFO("Received POST reply: " << out);
-
-    /* Check for errors */
-    if (res != CURLE_OK)
-    {
-        NS_LOG_ERROR("curl_easy_perform() failed: " << curl_easy_strerror(res) << "\n");
-        return EXIT_FAILURE;
-    }
-    return EXIT_SUCCESS;
-}
-
-int
-ChirpstackHelper::GET(const str& path, str& out) const
-{
-    CURL* curl;
-    CURLcode res;
-    std::stringstream ss;
-
-    /* get a curl handle */
-    curl = curl_easy_init();
-    if (curl)
-    {
-        /* Set the URL that is about to receive our POST. */
-        curl_easy_setopt(curl, CURLOPT_URL, (m_url + path).c_str());
-
-        /* Specify the HEADER content */
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, m_header);
-
-        /* Set reply stringstream */
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (void*)StreamWriteCallback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&ss);
-
-        NS_LOG_INFO("Sending GET request to " << m_url << path);
-        /* Perform the request, res will get the return code */
-        res = curl_easy_perform(curl);
-
-        /* always cleanup */
-        curl_easy_cleanup(curl);
-    }
-    else
-    {
-        NS_LOG_ERROR("curl_easy_init() failed\n");
-        return EXIT_FAILURE;
-    }
-
-    out = ss.str();
-    NS_LOG_INFO("Received GET reply: " << out);
 
     /* Check for errors */
     if (res != CURLE_OK)

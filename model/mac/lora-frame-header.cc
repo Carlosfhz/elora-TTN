@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2017 University of Padova
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Davide Magrin <magrinda@dei.unipd.it>
  *
@@ -27,10 +38,10 @@ NS_LOG_COMPONENT_DEFINE("LoraFrameHeader");
 LoraFrameHeader::LoraFrameHeader()
     : m_fPort(-1),
       m_address(LoraDeviceAddress(0, 0)),
-      m_adr(false),
-      m_adrAckReq(false),
-      m_ack(false),
-      m_fPending(false),
+      m_adr(0),
+      m_adrAckReq(0),
+      m_ack(0),
+      m_fPending(0),
       m_fOptsLen(0),
       m_fCnt(0),
       m_frmpCmdsLen(0)
@@ -533,7 +544,7 @@ LoraFrameHeader::AddLinkAdrAns(bool powerAck, bool dataRateAck, bool channelMask
     NS_LOG_FUNCTION(this << powerAck << dataRateAck << channelMaskAck);
 
     Ptr<LinkAdrAns> command = Create<LinkAdrAns>(powerAck, dataRateAck, channelMaskAck);
-    m_macCommands.emplace_back(command);
+    m_macCommands.push_back(command);
 
     m_fOptsLen += command->GetSerializedSize();
 }
@@ -545,7 +556,7 @@ LoraFrameHeader::AddDutyCycleReq(uint8_t dutyCycle)
 
     Ptr<DutyCycleReq> command = Create<DutyCycleReq>(dutyCycle);
 
-    m_macCommands.emplace_back(command);
+    m_macCommands.push_back(command);
 
     m_fOptsLen += command->GetSerializedSize();
 }
@@ -557,7 +568,7 @@ LoraFrameHeader::AddDutyCycleAns()
 
     Ptr<DutyCycleAns> command = Create<DutyCycleAns>();
 
-    m_macCommands.emplace_back(command);
+    m_macCommands.push_back(command);
 
     m_fOptsLen += command->GetSerializedSize();
 }
@@ -572,7 +583,7 @@ LoraFrameHeader::AddRxParamSetupReq(uint8_t rx1DrOffset, uint8_t rx2DataRate, do
 
     Ptr<RxParamSetupReq> command = Create<RxParamSetupReq>(rx1DrOffset, rx2DataRate, frequency);
 
-    m_macCommands.emplace_back(command);
+    m_macCommands.push_back(command);
 
     m_fOptsLen += command->GetSerializedSize();
 }
@@ -584,7 +595,7 @@ LoraFrameHeader::AddRxParamSetupAns()
 
     Ptr<RxParamSetupAns> command = Create<RxParamSetupAns>();
 
-    m_macCommands.emplace_back(command);
+    m_macCommands.push_back(command);
 
     m_fOptsLen += command->GetSerializedSize();
 }
@@ -596,7 +607,7 @@ LoraFrameHeader::AddDevStatusReq()
 
     Ptr<DevStatusReq> command = Create<DevStatusReq>();
 
-    m_macCommands.emplace_back(command);
+    m_macCommands.push_back(command);
 
     m_fOptsLen += command->GetSerializedSize();
 }
@@ -612,7 +623,7 @@ LoraFrameHeader::AddNewChannelReq(uint8_t chIndex,
     Ptr<NewChannelReq> command =
         Create<NewChannelReq>(chIndex, frequency, minDataRate, maxDataRate);
 
-    m_macCommands.emplace_back(command);
+    m_macCommands.push_back(command);
 
     m_fOptsLen += command->GetSerializedSize();
 }

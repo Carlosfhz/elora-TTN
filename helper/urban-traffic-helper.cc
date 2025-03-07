@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2022 Orange SA
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Alessandro Aimi <alessandro.aimi@orange.com>
  *                         <alessandro.aimi@cnam.fr>
@@ -80,6 +91,11 @@ UrbanTrafficHelper::SetDeviceGroups(M2MDeviceGroups groups)
         m_intervalProb->SetAttribute("Min", DoubleValue(m_cdf[5]));
         m_intervalProb->SetAttribute("Max", DoubleValue(m_cdf[12]));
         break;
+
+
+    case JustPoisson: //Added by carlos to include just poisson in the thing
+        m_Only_Poisson = true;
+
     case All:
     default:
         m_intervalProb->SetAttribute("Min", DoubleValue(0));
@@ -87,6 +103,25 @@ UrbanTrafficHelper::SetDeviceGroups(M2MDeviceGroups groups)
         break;
     }
 }
+void
+UrbanTrafficHelper::DoAssignInterval(int64_t interval)
+{
+
+    interval_period = interval;
+
+}
+
+
+
+
+int64_t
+UrbanTrafficHelper::DoAssignStreams(int64_t stream)
+{
+    m_intervalProb->SetStream(stream);
+    return 1;
+}
+
+
 
 ApplicationContainer
 UrbanTrafficHelper::Install(Ptr<Node> node) const
@@ -98,7 +133,7 @@ ApplicationContainer
 UrbanTrafficHelper::Install(NodeContainer c) const
 {
     ApplicationContainer apps;
-    for (auto i = c.Begin(); i != c.End(); ++i)
+    for (NodeContainer::Iterator i = c.Begin(); i != c.End(); ++i)
     {
         apps.Add(InstallPriv(*i));
     }
@@ -106,12 +141,14 @@ UrbanTrafficHelper::Install(NodeContainer c) const
     return apps;
 }
 
+
 Ptr<Application>
 UrbanTrafficHelper::InstallPriv(Ptr<Node> node) const
 {
     NS_LOG_FUNCTION(this << node);
 
     double intervalProb = m_intervalProb->GetValue();
+
 
     Time interval = Minutes(10);
     uint8_t pktSize = 18;
@@ -158,7 +195,14 @@ UrbanTrafficHelper::InstallPriv(Ptr<Node> node) const
      * We could implement packet fragmentation...
      */
 
-    if (intervalProb < m_cdf[0]) // Credit machine (grocery)
+    if(m_Only_Poisson){//added by me to configure all the end devices with the poisson distribution
+        interval = Seconds(interval_period);
+        pktSize = 20;
+        poisson = true;
+        type = "Poisson Device";
+
+    }
+    else if (intervalProb < m_cdf[0]) // Credit machine (grocery)
     {
         interval = Minutes(2);
         pktSize = 24;

@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2017 University of Padova
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Davide Magrin <magrinda@dei.unipd.it>
  *
@@ -45,8 +56,9 @@ LorawanHelper::Install(const LoraPhyHelper& phyHelper,
                        const LorawanMacHelper& macHelper,
                        NodeContainer c) const
 {
+    NS_LOG_DEBUG("Installing LoRaWAN");
     NetDeviceContainer devices;
-    for (auto i = c.Begin(); i != c.End(); ++i)
+    for (NodeContainer::Iterator i = c.Begin(); i != c.End(); ++i)
     {
         Ptr<Node> node = *i;
         Ptr<LoraNetDevice> device = CreateObject<LoraNetDevice>();
@@ -62,13 +74,36 @@ LorawanHelper::Install(const LoraPhyHelper& phyHelper,
                 mac->TraceConnectWithoutContext(
                     "SentNewPacket",
                     MakeCallback(&LoraPacketTracker::MacTransmissionCallback, m_packetTracker));
+                
                 mac->TraceConnectWithoutContext(
                     "RequiredTransmissions",
                     MakeCallback(&LoraPacketTracker::RequiredTransmissionsCallback,
                                  m_packetTracker));
+
+                //Added by me
+                phy->TraceConnectWithoutContext(
+                    "ReceivedPacket",
+                    MakeCallback(&LoraPacketTracker::PacketReceptionCallback, m_packetTracker)); 
+
+                mac->TraceConnectWithoutContext(
+                    "ReceivedPacket",
+                    MakeCallback(&LoraPacketTracker::MacGwReceptionCallback, m_packetTracker));           
+                phy->TraceConnectWithoutContext(
+                    "LostPacketBecauseUnderSensitivity",
+                    MakeCallback(&LoraPacketTracker::UnderSensitivityCallback, m_packetTracker));
+                mac->TraceConnectWithoutContext(
+                    "CannotSendBecauseDutyCycle",
+                    MakeCallback(&LoraPacketTracker::MacGwDutyCallback, m_packetTracker));            
+                phy->TraceConnectWithoutContext(
+                    "LostPacketBecauseInterference",
+                    MakeCallback(&LoraPacketTracker::InterferenceCallback, m_packetTracker));
             }
             else if (DynamicCast<GatewayLoraPhy>(phy) != nullptr)
-            {
+            {        NS_LOG_DEBUG("node=" << node << ", mob=" << node->GetObject<MobilityModel>());
+                
+
+                
+
                 phy->TraceConnectWithoutContext(
                     "ReceivedPacket",
                     MakeCallback(&LoraPacketTracker::PacketReceptionCallback, m_packetTracker));
@@ -87,6 +122,24 @@ LorawanHelper::Install(const LoraPhyHelper& phyHelper,
                 mac->TraceConnectWithoutContext(
                     "ReceivedPacket",
                     MakeCallback(&LoraPacketTracker::MacGwReceptionCallback, m_packetTracker));
+                //Added to see if i can check DL lost due to Duty cycle in GW
+                mac->TraceConnectWithoutContext(
+                    "CannotSendBecauseDutyCycle",
+                    MakeCallback(&LoraPacketTracker::MacGwDutyCallback, m_packetTracker));
+                 /// I added this
+/*                 mac->TraceConnectWithoutContext(
+                    "RequiredTransmissions",
+                    MakeCallback(&LoraPacketTracker::RequiredTransmissionsCallback,
+                                 m_packetTracker)); */
+
+                // Added by me
+                mac->TraceConnectWithoutContext(
+                    "SentNewPacket",
+                    MakeCallback(&LoraPacketTracker::MacTransmissionCallback, m_packetTracker));
+
+                phy->TraceConnectWithoutContext(
+                    "StartSending",
+                    MakeCallback(&LoraPacketTracker::TransmissionCallback, m_packetTracker));
             }
         }
         node->AddDevice(device);
@@ -157,6 +210,8 @@ LorawanHelper::EnablePeriodicDeviceStatusPrinting(NodeContainer endDevices,
                         interval);
 }
 
+
+
 void
 LorawanHelper::DoPrintDeviceStatus(NodeContainer endDevices,
                                    NodeContainer gateways,
@@ -177,9 +232,14 @@ LorawanHelper::DoPrintDeviceStatus(NodeContainer endDevices,
 
     Time currentTime = Simulator::Now();
     DevPktCount devPktCount;
-    m_packetTracker->CountAllDevicesPackets(m_lastDeviceStatusUpdate, currentTime, devPktCount);
+    DevPktCount devPktCount_DL;
 
-    for (auto j = endDevices.Begin(); j != endDevices.End(); ++j)
+
+    m_packetTracker->CountAllDevicesPackets(m_lastDeviceStatusUpdate, currentTime, devPktCount);
+    m_packetTracker->CountAllDevicesPackets_DL(m_lastDeviceStatusUpdate, currentTime,devPktCount_DL);
+
+    outputFile << "Time,ID, Address, FType,X,Y,Z,GWDist,Data Rate, Tx Power, Tx,CTx,UCTx, Rx,CRx,UCRx, HD-CUL,HD-UUL, TXdl,Rxdl, Rx1, Rx2, Rx1_s, Rx2_s, Rx1_dc, Rx2_dc, MaxOT, OT"<< std::endl;
+    for (NodeContainer::Iterator j = endDevices.Begin(); j != endDevices.End(); ++j)
     {
         auto node = *j;
         auto position = node->GetObject<MobilityModel>();
@@ -188,6 +248,8 @@ LorawanHelper::DoPrintDeviceStatus(NodeContainer endDevices,
         auto app = DynamicCast<LoraApplication>(node->GetApplication(0));
 
         Vector pos = position->GetPosition();
+        LoraDeviceAddress address_ed = mac->GetDeviceAddress();
+        LorawanMacHeader::FType ftype = mac->GetFType();
 
         double gwdist = std::numeric_limits<double>::max();
         for (auto gw = gateways.Begin(); gw != gateways.End(); ++gw)
@@ -200,6 +262,7 @@ LorawanHelper::DoPrintDeviceStatus(NodeContainer endDevices,
         double txPower = mac->GetTransmissionPower();
 
         devCount_t& count = devPktCount[node->GetId()];
+        devCount_t& count_DL = devPktCount_DL[node->GetId()];
 
         // Add: #sent, #received, max-offered-traffic, duty-cycle
         uint8_t size = app->GetPacketSize();
@@ -214,10 +277,33 @@ LorawanHelper::DoPrintDeviceStatus(NodeContainer endDevices,
         double ot = mac->GetAggregatedDutyCycle();
         ot = std::min(ot, maxot);
 
-        outputFile << currentTime.GetSeconds() << " " << node->GetId() << " " << pos.x << " "
-                   << pos.y << " " << pos.z << " " << gwdist << " " << dr << " "
-                   << unsigned(txPower) << " " << count.sent << " " << count.received << " "
-                   << maxot << " " << ot << std::endl;
+        outputFile 
+        << currentTime.GetSeconds() << "," 
+        << node->GetId() <<","
+        << address_ed<<","
+         << ftype << ","
+         << pos.x << "," 
+         << pos.y << "," 
+         << pos.z << "," 
+         << gwdist << "," 
+         << dr << ","
+         << unsigned(txPower)<< "," 
+         << count.sent << "," 
+         << count.Csent << "," 
+         << count.UCsent << "," 
+         << count.received << "," 
+        << count.Creceived << "," 
+         << count.UCreceived << "," 
+         << count.HDLossCUL << ","
+         << count.HDLossUUL << ","
+         << count_DL.sent << ","
+          << count_DL.received << ","
+          <<count_DL.Rx1 << "," 
+          <<count_DL.Rx2<< "," 
+          << count_DL.Rx1_s <<"," 
+          << count_DL.Rx2_s <<"," 
+          << count_DL.Rx1_DC <<"," 
+          <<count_DL.Rx2_DC<<std::endl; //        << maxot << "," << ot <<
     }
     m_lastDeviceStatusUpdate = Simulator::Now();
     outputFile.close();
@@ -260,10 +346,12 @@ LorawanHelper::DoPrintGwsPerformance(NodeContainer gateways, std::string filenam
 
     GwsPhyPktPrint strings;
     m_packetTracker->PrintPhyPacketsAllGws(m_lastPhyPerformanceUpdate, Simulator::Now(), strings);
+    outputFile << "Time,ID,Received,Interfered,No Receivers, Under, GW busy, unset"<< std::endl;
+
     for (auto it = gateways.Begin(); it != gateways.End(); ++it)
     {
         int systemId = (*it)->GetId();
-        outputFile << Simulator::Now().GetSeconds() << " " << std::to_string(systemId) << " "
+        outputFile << Simulator::Now().GetSeconds() << "," << std::to_string(systemId) << ","
                    << strings[systemId].s << std::endl;
     }
 
@@ -293,6 +381,13 @@ LorawanHelper::DoPrintGlobalPerformance(std::string filename)
 
     const char* c = filename.c_str();
     std::ofstream outputFile;
+    bool fileExists = false;
+    std::ifstream infile(c);
+    if (infile.good()) {
+        fileExists = true;
+    }
+    infile.close(); // Close the file stream after checking
+
     if (Simulator::Now() == Seconds(0))
     {
         // Delete contents of the file as it is opened
@@ -302,9 +397,17 @@ LorawanHelper::DoPrintGlobalPerformance(std::string filename)
     {
         // Only append to the file
         outputFile.open(c, std::ofstream::out | std::ofstream::app);
+
     }
 
-    outputFile << Simulator::Now().GetSeconds() << " "
+    if (!fileExists)
+    {
+        outputFile << "Time,Sent,Received,Interfered,No Receivers, Busy, Under"<< std::endl;
+
+    }
+
+
+    outputFile << Simulator::Now().GetSeconds() << ","
                << m_packetTracker->PrintPhyPacketsGlobally(m_lastGlobalPerformanceUpdate,
                                                            Simulator::Now())
                << std::endl;
@@ -368,7 +471,7 @@ LorawanHelper::DoPrintSFStatus(NodeContainer endDevices,
     using sfMap_t = std::map<int, sfStatus_t>;
     sfMap_t sfmap;
 
-    for (auto j = endDevices.Begin(); j != endDevices.End(); ++j)
+    for (NodeContainer::Iterator j = endDevices.Begin(); j != endDevices.End(); ++j)
     {
         // Obtain device information
         auto node = *j;
@@ -410,11 +513,9 @@ LorawanHelper::DoPrintSFStatus(NodeContainer endDevices,
     }
 
     for (const auto& sf : sfmap)
-    {
         outputFile << currentTime.GetSeconds() << " " << sf.first << " " << sf.second.sent << " "
                    << sf.second.received << " " << sf.second.totMaxOT << " " << sf.second.totAggDC
                    << " " << sf.second.totEnergy << std::endl;
-    }
 
     m_lastSFStatusUpdate = Simulator::Now();
     outputFile.close();
@@ -430,9 +531,7 @@ LorawanHelper::EnablePrinting(NodeContainer endDevices,
     for (auto l : levels)
     {
         if (active[l])
-        {
             continue;
-        }
         switch (l)
         {
         case NET:

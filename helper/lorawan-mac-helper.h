@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2017 University of Padova
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Davide Magrin <magrinda@dei.unipd.it>
  *
@@ -36,6 +47,7 @@ class LorawanMacHelper
         China,
         EU433MHz,
         Australia,
+        DefaultChannels,
         CN,
         AS923MHz,
         SouthKorea,
@@ -85,6 +97,13 @@ class LorawanMacHelper
     static std::vector<int> SetSpreadingFactorsUp(NodeContainer endDevices,
                                                   NodeContainer gateways,
                                                   Ptr<LoraChannel> channel);
+    static std::vector<int> SetSpreadingFactorsUpOriginal(NodeContainer endDevices,
+                                                  NodeContainer gateways,
+                                                  Ptr<LoraChannel> channel);
+    static std::vector<int> SetSpreadingFactorsUpAVG(NodeContainer endDevices,
+                                                  NodeContainer gateways,
+                                                  Ptr<LoraChannel> channel);   
+    static std::vector<int> SetSpreadingFactorsUnique(NodeContainer endDevices,uint8_t dr) ;                                       
 
   private:
     /**
@@ -100,7 +119,12 @@ class LorawanMacHelper
     /**
      * Perform region-specific configurations for the ALOHA band.
      */
-    void ConfigureForAlohaRegion(Ptr<LorawanMac> mac) const;
+    void ConfigureForAlohaRegion(Ptr<LorawanMac> mac) const;//added by carlos
+    /**
+     * Perform region-specific configurations for the default channels
+     */
+
+    void ConfigureForDefaultChannelsEU(Ptr<LorawanMac> mac) const;//added by carlos
 
     ObjectFactory m_mac;
     Ptr<LoraDeviceAddressGenerator> m_addrGen; //!< Pointer to the address generator to use

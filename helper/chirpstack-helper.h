@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2022 Orange SA
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Alessandro Aimi <alessandro.aimi@orange.com>
  *                         <alessandro.aimi@cnam.fr>
@@ -28,6 +39,7 @@ namespace lorawan
 class ChirpstackHelper
 {
     using str = std::string;
+    using query_t = std::vector<std::pair<str, str>>;
 
     struct session_t
     {
@@ -49,20 +61,15 @@ class ChirpstackHelper
   public:
     ChirpstackHelper();
 
+    ~ChirpstackHelper();
+
     int InitConnection(const str address, uint16_t port, const str token);
 
-    void CloseConnection(int signal);
+    void CloseConnection(int signal) const;
 
     int Register(NodeContainer c) const;
 
     int Register(Ptr<Node> node) const;
-
-    int CreateHttpIntegration(const str& encoding, const str& endpoint) const;
-
-    int CreateInfluxDb2Integration(const str& endpoint,
-                                   const str& organization,
-                                   const str& bucket,
-                                   const str& token) const;
 
     void SetTenant(str& name);
 
@@ -73,25 +80,19 @@ class ChirpstackHelper
   private:
     int DoConnect();
 
-    int CreateTenant(const str& name);
+    int NewTenant(const str& name);
 
-    int DeleteTenant(const str& id);
+    int NewDeviceProfile(const str& name);
 
-    int ListTenantIds(const str& search, std::vector<str>& out);
-
-    int CreateDeviceProfile(const str& name);
-
-    int CreateApplication(const str& name);
+    int NewApplication(const str& name);
 
     int RegisterPriv(Ptr<Node> node) const;
 
-    int CreateDevice(Ptr<Node> node) const;
+    int NewDevice(Ptr<Node> node) const;
 
-    int CreateGateway(Ptr<Node> node) const;
+    int NewGateway(Ptr<Node> node) const;
 
     int POST(const str& path, const str& body, str& out) const;
-
-    int GET(const str& path, str& out) const;
 
     int DELETE(const str& path, str& out) const;
 

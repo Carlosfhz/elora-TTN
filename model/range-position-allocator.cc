@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2022 Orange SA
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Alessandro Aimi <alessandro.aimi@orange.com>
  *                         <alessandro.aimi@cnam.fr>
@@ -112,7 +123,7 @@ RangePositionAllocator::SetZ(Ptr<RandomVariableStream> z)
 void
 RangePositionAllocator::SetNodes(NodeContainer nodes)
 {
-    for (auto i = nodes.Begin(); i != nodes.End(); ++i)
+    for (NodeContainer::Iterator i = nodes.Begin(); i != nodes.End(); ++i)
     {
         m_nodes.push_back(*i);
     }
@@ -129,9 +140,7 @@ RangePositionAllocator::OutOfRange(double x, double y, double z) const
         double dist = i->GetObject<MobilityModel>()->GetDistanceFrom(pos);
 
         if (dist <= 1.0)
-        {
             return true;
-        }
 
         if (dist < m_range)
         {

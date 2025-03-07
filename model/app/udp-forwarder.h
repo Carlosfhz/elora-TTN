@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2021 Alessandro Aimi
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Alessandro Aimi <alessandro.aimi@orange.com>
  *                         <alessandro.aimi@cnam.fr>
@@ -20,7 +31,10 @@
 #include "ns3/packet.h"
 #include "ns3/ptr.h"
 #include "ns3/socket.h"
-
+//added by me 
+#include "ns3/object.h"
+#include "ns3/traced-value.h"
+#include "ns3/trace-source-accessor.h"
 #include <queue>
 
 /******************************
@@ -52,7 +66,7 @@
 #define DEFAULT_KEEPALIVE 5 /* default time interval for downstream keep-alive packet */
 #define DEFAULT_STAT 30     /* default time interval for statistics */
 #define PUSH_TIMEOUT_MS 100
-#define PULL_TIMEOUT_MS 200 /*period for checking keepalive (PULL) threshold */
+#define PULL_TIMEOUT_MS 2000 /*period for checking keepalive (PULL) threshold */
 #define GPS_REF_MAX_AGE                                                                            \
     30 /* maximum admitted delay in seconds of GPS loss before considering latest GPS sync         \
           unusable */
@@ -262,7 +276,7 @@ class UdpForwarder : public Application
     uint32_t meas_nb_beacon_queued = 0;         /* count beacon inserted in jit queue */
     uint32_t meas_nb_beacon_sent = 0;           /* count beacon actually sent to concentrator */
     uint32_t meas_nb_beacon_rejected = 0;       /* count beacon rejected for queuing */
-
+    
     bool report_ready = false;       /* true when there is a new report to send to the server */
     char status_report[STATUS_SIZE]; /* status report as a JSON object */
 
@@ -274,7 +288,7 @@ class UdpForwarder : public Application
     struct jit_queue_s jit_queue;
 
     /* Gateway specificities */
-    int8_t antenna_gain = 0;
+    int8_t antenna_gain = 0; //was 0
 
     /* TX capabilities */
     struct lgw_tx_gain_lut_s txlut;        /* TX gain table */
@@ -286,6 +300,16 @@ class UdpForwarder : public Application
     int send_tx_ack(uint8_t token_h, uint8_t token_l, enum jit_error_e error);
 
     static void print_tx_status(uint8_t tx_status);
+
+
+    TracedValue<int32_t> m_correctScehdule = 0;
+
+    /**
+     * Trace source that is fired when a packet reaches the MAC layer from PHY.
+     */
+    TracedValue<int32_t> m_concentratorTxLoss = 0;
+    TracedValue<int32_t> m_correctTx = 0;
+
 };
 
 } // namespace lorawan

@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2017 University of Padova
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Davide Magrin <magrinda@dei.unipd.it>
  *         Martina Capuzzo <capuzzom@dei.unipd.it>
@@ -16,16 +27,15 @@
 #ifndef END_DEVICE_LORAWAN_MAC_H
 #define END_DEVICE_LORAWAN_MAC_H
 
-#include "lora-device-address.h"
-#include "lora-frame-header.h"
-#include "lorawan-mac-header.h"
-#include "lorawan-mac.h"
-#include "mac-command.h"
-
 #include "ns3/LoRaMacCrypto.h"
+#include "ns3/lora-device-address.h"
+#include "ns3/lora-frame-header.h"
+#include "ns3/lorawan-mac-header.h"
+#include "ns3/lorawan-mac.h"
+#include "ns3/mac-command.h"
 #include "ns3/traced-value.h"
 
-#define ADR_ACK_LIMIT 64
+#define ADR_ACK_LIMIT 9//was 64
 #define ADR_ACK_DELAY 32
 #define MAX_ADR_ACK_CNT (ADR_ACK_LIMIT + 7 * ADR_ACK_DELAY + 1)
 
@@ -263,9 +273,6 @@ class BaseEndDeviceLorawanMac : public LorawanMac
     /* Counter for keepalive purposes */
     uint16_t m_ADRACKCnt;
 
-    /* Uplink only - request keepalive acknowledgement from the server */
-    bool m_ADRACKReq;
-
     /**
      * The event of transmitting a packet in a consecutive moment, when the duty cycle let us
      * transmit or if an ACK is not received.
@@ -453,6 +460,9 @@ class BaseEndDeviceLorawanMac : public LorawanMac
      * Whether this device's data rate should be controlled by the NS.
      */
     bool m_ADRBit;
+
+    /* Uplink only - request keepalive acknowledgement from the server */
+    bool m_ADRACKReq;
 
     /**
      * Uplink frame counter of the device

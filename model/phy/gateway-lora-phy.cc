@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2017 University of Padova
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Davide Magrin <magrinda@dei.unipd.it>
  *
@@ -15,7 +26,7 @@
 #include "ns3/lora-tag.h"
 #include "ns3/node.h"
 #include "ns3/simulator.h"
-
+#define GLOBECOM 1
 namespace ns3
 {
 namespace lorawan
@@ -29,7 +40,7 @@ NS_OBJECT_ENSURE_REGISTERED(GatewayLoraPhy);
  *    ReceptionPath implementation    *
  **************************************/
 GatewayLoraPhy::ReceptionPath::ReceptionPath()
-    : m_available(true),
+    : m_available(1),
       m_event(nullptr),
       m_endReceiveEventId(EventId())
 {
@@ -136,15 +147,26 @@ GatewayLoraPhy::StartReceive(Ptr<Packet> packet,
                              double frequency)
 {
     NS_LOG_FUNCTION(this << packet << rxPowerDbm << duration << frequency);
+        // ADDED BY CARLOS
+    LoraTag tag;
+    packet->RemovePacketTag(tag);
+    tag.SetReceptionTime(Simulator::Now());
+    tag.SetReceivePower(rxPowerDbm);
+    tag.SetSnr(RxPowerToSNR(rxPowerDbm));
+    packet->AddPacketTag(tag);
+    //
+
+
     if (m_isTransmitting)
     {
         // If we get to this point, there are no demodulators we can use
-        NS_LOG_INFO("Dropping packet reception of packet with sf = "
-                    << unsigned(sf) << " because we are in TX mode");
+        //NS_LOG_INFO("Dropping packet reception of packet with sf = "<< unsigned(sf) << " because we are in TX mode"); 
         // Fire the trace sources
-        m_noReceptionBecauseTransmitting(packet, m_nodeId);
-        return;
-    }
+
+        //m_noReceptionBecauseTransmitting(packet, m_nodeId);
+        m_halfDuplexLoss = true;
+        //return; //This was comented by me in order to follow this.
+    } 
     // Add the event to the LoraInterferenceHelper
     auto event = m_interference->Add(duration, rxPowerDbm, sf, packet, frequency);
     // Cycle over the receive paths to check availability to receive the packet
@@ -157,15 +179,21 @@ GatewayLoraPhy::StartReceive(Ptr<Packet> packet,
             double sensitivity = GatewayLoraPhy::sensitivity[unsigned(sf) - 7];
             if (rxPowerDbm < sensitivity) // Packet arrived below sensitivity
             {
-                NS_LOG_INFO("Dropping packet reception of packet with sf = "
+/*                 NS_LOG_INFO("Dropping packet reception of packet with sf = "
                             << unsigned(sf) << " because under the sensitivity of " << sensitivity
-                            << " dBm");
+                            << " dBm"); */
+                
                 // Fire the trace sources
                 m_underSensitivity(packet, m_nodeId);
+                m_halfDuplexLoss = false;
             }
             else // We have sufficient sensitivity to start receiving
             {
-                NS_LOG_INFO("Scheduling reception of a packet, occupying one demodulator");
+
+
+
+
+                //NS_LOG_INFO("Scheduling reception of a packet, occupying one demodulator");
                 // Block this resource
                 path->LockOnEvent(event);
                 m_occupiedReceptionPaths++;
@@ -182,9 +210,9 @@ GatewayLoraPhy::StartReceive(Ptr<Packet> packet,
         }
     }
     // If we get to this point, there are no demodulators we can use
-    NS_LOG_INFO("Dropping packet reception of packet with sf = "
+/*     NS_LOG_INFO("Dropping packet reception of packet with sf = "
                 << unsigned(sf) << " and frequency " << frequency
-                << "Hz because no suitable demodulator was found");
+                << "Hz because no suitable demodulator was found"); */
     // Fire the trace source
     m_noMoreDemodulators(packet, m_nodeId);
 }
@@ -202,40 +230,50 @@ GatewayLoraPhy::EndReceive(Ptr<Packet> packet, Ptr<LoraInterferenceHelper::Event
     // Check whether the packet was destroyed
     if (packetDestroyed)
     {
-        NS_LOG_DEBUG("packetDestroyed by interference on SF " << unsigned(packetDestroyed));
+        //NS_LOG_DEBUG("packetDestroyed by interference on SF " << unsigned(packetDestroyed));
         // Update the packet's LoraTag
         LoraTag tag;
         packet->RemovePacketTag(tag);
         tag.SetDestroyedBy(packetDestroyed);
         tag.SetReceptionTime(Simulator::Now());
+
         packet->AddPacketTag(tag);
         // Fire the trace source
         m_interferedPacket(packet, m_nodeId);
+        m_halfDuplexLoss = false;
     }
     else // Reception was correct
     {
-        NS_LOG_INFO("Packet with SF " << unsigned(event->GetSpreadingFactor())
-                                      << " received correctly");
+/*         NS_LOG_INFO("Packet with SF " << unsigned(event->GetSpreadingFactor())
+                                      << " received correctly"); */
         // Set the receive power and frequency of this packet in the LoraTag: this
         // information can be useful for upper layers trying to control link
         // quality and to fill the packet sniffing header.
-        LoraTag tag;
-        packet->RemovePacketTag(tag);
-        tag.SetReceptionTime(Simulator::Now());
-        tag.SetReceivePower(event->GetRxPowerdBm());
-        tag.SetSnr(RxPowerToSNR(event->GetRxPowerdBm()));
-        packet->AddPacketTag(tag);
-        // Forward the packet to the upper layer
-        if (!m_rxOkCallback.IsNull())
-        {
-            m_rxOkCallback(packet);
+
+        if(m_halfDuplexLoss){
+            m_halfDuplexLoss = false;
+            m_noReceptionBecauseTransmitting(packet, m_nodeId);
+
         }
-        // Fire the trace source
-        m_successfullyReceivedPacket(packet, m_nodeId);
-        // Fire the sniffer trace source
-        if (!m_phySniffRxTrace.IsEmpty())
-        {
-            m_phySniffRxTrace(packet);
+        else{
+            LoraTag tag;
+            packet->RemovePacketTag(tag);
+            tag.SetReceptionTime(Simulator::Now());
+            tag.SetReceivePower(event->GetRxPowerdBm());
+            tag.SetSnr(RxPowerToSNR(event->GetRxPowerdBm()));
+            packet->AddPacketTag(tag);
+            // Forward the packet to the upper layer
+            if (!m_rxOkCallback.IsNull())
+            {
+                m_rxOkCallback(packet);
+            }
+            // Fire the trace source
+            m_successfullyReceivedPacket(packet, m_nodeId);
+            // Fire the sniffer trace source
+            if (!m_phySniffRxTrace.IsEmpty())
+            {
+                m_phySniffRxTrace(packet);
+            }
         }
     }
     // Search for the demodulator that was locked on this event to free it.
@@ -260,17 +298,23 @@ GatewayLoraPhy::Send(Ptr<Packet> packet,
 
     // Interrupt all receive operations
     for (auto& path : m_receptionPaths)
-    {
         if (!path->IsAvailable()) // Reception path is occupied
         {
-            // Fire the trace source for reception interrupted by transmission
-            m_noReceptionBecauseTransmitting(path->GetEvent()->GetPacket(), m_nodeId);
-            // Cancel the scheduled EndReceive call
-            Simulator::Cancel(path->GetEndReceive());
-            // Free it and resets all parameters
-            path->Free();
+            if(GLOBECOM==1){ // I need this to bypasss this and do not cancel teh reception. 
+                m_halfDuplexLoss = true;
+                //path->Free();
+                
+            }
+            else{
+                // Fire the trace source for reception interrupted by transmission
+                m_noReceptionBecauseTransmitting(path->GetEvent()->GetPacket(), m_nodeId);
+                // Cancel the scheduled EndReceive call
+                Simulator::Cancel(path->GetEndReceive());
+                // Free it and resets all parameters
+                path->Free();
+            }
+
         }
-    }
 
     // Tag packet with PHY layer tx info
     LoraTag tag;
@@ -281,10 +325,26 @@ GatewayLoraPhy::Send(Ptr<Packet> packet,
     // Get the time a packet with these parameters will take to be transmitted
     Time duration = GetTimeOnAir(packet, txParams);
     NS_LOG_DEBUG("Duration of packet: " << duration << ", SF" << unsigned(txParams.sf));
+    NS_LOG_INFO("NodeID:"<<m_nodeId<<"TXParam: " << txParams);
 
     // Set state to transmistting
     m_isTransmitting = true;
     // Send the downlink packet in the channel
+/*     //Agregado
+    // Work on a copy of the packet
+    Ptr<Packet> packetCopy = packet->Copy();
+    // Remove MIC (currently we do not check it)
+    packetCopy->RemoveAtEnd(4);
+    // Remove the Mac Header to get some information
+    LorawanMacHeader mHdr;
+    packetCopy->RemoveHeader(mHdr);
+    LoraFrameHeader fHdr;
+    //NS_LOG_DEBUG("Deserialized bytes: " << deserialized << ", Frame Header:\n" << fHdr);
+    /NS_LOG_INFO(" {Frame Header:{" << "EDAddress:" <<fHdr.GetAddress() 
+                << ",FCnt:" << fHdr.GetFCnt() <<"}");
+    // Parse and apply all MAC commands received
+
+    //agregado */
     NS_LOG_INFO("Sending the packet in the channel");
     m_channel->Send(this, packet, txPowerDbm, txParams.sf, duration, frequency);
     // Fire the trace source
@@ -315,6 +375,8 @@ bool
 GatewayLoraPhy::IsTransmitting()
 {
     NS_LOG_FUNCTION_NOARGS();
+    NS_LOG_INFO("GW Transmiting");
+
     return m_isTransmitting;
 }
 

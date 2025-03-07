@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2017 University of Padova
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Davide Magrin <magrinda@dei.unipd.it>
  *         Martina Capuzzo <capuzzom@dei.unipd.it>
@@ -74,9 +85,9 @@ ClassAEndDeviceLorawanMac::SendToPhy(Ptr<Packet> packet)
     m_txParams.sf = GetSfFromDataRate(m_dataRate);
     m_txParams.bandwidthHz = GetBandwidthFromDataRate(m_dataRate);
     m_txParams.lowDataRateOptimizationEnabled = LoraPhy::GetTSym(m_txParams) > MilliSeconds(16);
-    NS_LOG_DEBUG("DR: " << unsigned(m_dataRate));
-    NS_LOG_DEBUG("SF: " << unsigned(m_txParams.sf));
-    NS_LOG_DEBUG("BW: " << m_txParams.bandwidthHz << " Hz");
+    //NS_LOG_DEBUG("DR: " << unsigned(m_dataRate));
+    //NS_LOG_DEBUG("SF: " << unsigned(m_txParams.sf));
+    //NS_LOG_DEBUG("BW: " << m_txParams.bandwidthHz << " Hz");
 
     m_lastTxCh = GetChannelForTx();
     double frequency = m_lastTxCh->GetFrequency();
@@ -94,7 +105,7 @@ ClassAEndDeviceLorawanMac::SendToPhy(Ptr<Packet> packet)
 
     // Get the duration
     Time duration = m_phy->GetTimeOnAir(packet, m_txParams);
-    NS_LOG_DEBUG("Duration: " << duration.GetSeconds());
+    //NS_LOG_DEBUG("Duration: " << duration.GetSeconds());
     // Add the event to the channelHelper to keep track of duty cycle
     m_channelManager->AddEvent(duration, m_lastTxCh);
 
@@ -102,7 +113,7 @@ ClassAEndDeviceLorawanMac::SendToPhy(Ptr<Packet> packet)
     DynamicCast<EndDeviceLoraPhy>(m_phy)->SwitchToStandby();
     m_phy->Send(packet, m_txParams, frequency, m_txPower);
     // Fire trace source
-    m_sentNewPacket(packet);
+    m_sentNewPacket(packet,0);
 }
 
 void
@@ -130,7 +141,7 @@ ClassAEndDeviceLorawanMac::GetBusyTransmissionDelay()
     // (we try to be as accurate as possible)
     if (m_txContext.busy)
     {
-        NS_LOG_WARN("Attempting to send when device is already busy, postponed.");
+        //NS_LOG_WARN("Attempting to send when device is already busy, postponed.");
         return Seconds(m_uniformRV->GetValue(4, 5));
     }
     return Seconds(0);
@@ -151,14 +162,14 @@ ClassAEndDeviceLorawanMac::Receive(Ptr<const Packet> packet)
 {
     NS_LOG_FUNCTION(this << packet);
 
-    NS_LOG_INFO("Downlink packet for us arrived at MAC layer.");
+    //NS_LOG_INFO("Downlink packet for us arrived at MAC layer.");
     // Stop all reception windows and ensure the device is sleeping
+    bool RxMore = m_rwm-> NoMoreWindows() ; //TO check which of the Rx windows are here.
     m_rwm->Stop();
     // Open the context to new transmissions
     m_txContext.busy = false;
-    // Reset ADR backoff counter and bit
+    // Reset ADR backoff counter
     m_ADRACKCnt = 0;
-    m_ADRACKReq = false;
     // Clear commands that are re-sent until downlink (DlChannelAns and RxTimingSetupAns)
     m_fOpts.clear();
 
@@ -169,12 +180,16 @@ ClassAEndDeviceLorawanMac::Receive(Ptr<const Packet> packet)
     // Remove the Mac Header to get some information
     LorawanMacHeader mHdr;
     packetCopy->RemoveHeader(mHdr);
-    NS_LOG_DEBUG("Mac Header: " << mHdr);
+   //NS_LOG_DEBUG("Mac Header: " << mHdr);
     // Remove the Frame Header
     LoraFrameHeader fHdr;
     fHdr.SetAsDownlink();
     int deserialized = packetCopy->RemoveHeader(fHdr);
-    NS_LOG_DEBUG("Deserialized bytes: " << deserialized << ", Frame Header:\n" << fHdr);
+    //NS_LOG_DEBUG("Deserialized bytes: " << deserialized << ", Frame Header:\n" << fHdr);
+    RxOutcome outcome = fHdr.GetAck() ? ACK : RECV;
+    //NS_LOG_INFO("Downlink"<< packet);/// earese this
+    NS_LOG_INFO(" {Frame Header:{" <<"Bytes: " << deserialized <<",EDAddress:" <<fHdr.GetAddress() 
+                << ",FCnt:" << fHdr.GetFCnt()<< ",IsUL:"<< mHdr.IsUplink()<< ",RxOrNot:"<< outcome <<  " ,Rx:" << RxMore <<"}");
     // Parse and apply all MAC commands received
     ApplyMACCommands(fHdr, packetCopy);
 
@@ -236,7 +251,7 @@ ClassAEndDeviceLorawanMac::ManageRetransmissions(RxOutcome outcome)
         {
             NS_LOG_DEBUG("No reception initiated by PHY: rescheduling transmission.");
         }
-        NS_LOG_INFO("We have " << unsigned(m_txContext.nbTxLeft) << " retransmissions left.");
+        //NS_LOG_INFO("We have " << unsigned(m_txContext.nbTxLeft) << " retransmissions left.");
         postponeTransmission(Seconds(RETRANSMIT_TIMEOUT), m_txContext.packet);
         return;
     }
@@ -273,7 +288,7 @@ ClassAEndDeviceLorawanMac::OnRxParamSetupReq(Ptr<RxParamSetupReq> rxParamSetupRe
     uint8_t rx2DataRate = rxParamSetupReq->GetRx2DataRate();
     double frequency = rxParamSetupReq->GetFrequency();
 
-    NS_LOG_INFO(unsigned(rx1DrOffset) << unsigned(rx2DataRate) << frequency);
+    //NS_LOG_INFO(unsigned(rx1DrOffset) << unsigned(rx2DataRate) << frequency);
 
     // Check that the desired offset is valid
     bool offsetOk = (0 <= rx1DrOffset && rx1DrOffset <= 5);
@@ -295,8 +310,8 @@ ClassAEndDeviceLorawanMac::OnRxParamSetupReq(Ptr<RxParamSetupReq> rxParamSetupRe
     }
 
     // Craft a RxParamSetupAns as response
-    NS_LOG_INFO("Adding RxParamSetupAns reply");
-    m_fOpts.emplace_back(Create<RxParamSetupAns>(offsetOk, dataRateOk, channelOk));
+    //NS_LOG_INFO("Adding RxParamSetupAns reply");
+    m_fOpts.push_back(Create<RxParamSetupAns>(offsetOk, dataRateOk, channelOk));
 }
 
 void
@@ -307,7 +322,7 @@ ClassAEndDeviceLorawanMac::OnRxTimingSetupReq(Time delay)
     m_rwm->SetRx1Delay(delay);
 
     NS_LOG_INFO("Adding RxTimingSetupAns reply");
-    m_fOpts.emplace_back(Create<RxTimingSetupAns>());
+    m_fOpts.push_back(Create<RxTimingSetupAns>());
 }
 
 /////////////////////////

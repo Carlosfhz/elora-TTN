@@ -17,7 +17,10 @@ foreach(
   build_lib_example(
     NAME ${example}
     SOURCE_FILES ${example}.cc
-    LIBRARIES_TO_LINK ${libelora}
+    LIBRARIES_TO_LINK 
+    ${libelora}
+    ${libtap-bridge}
+    ${libcsma}
   )
 endforeach()
 
@@ -38,3 +41,13 @@ build_lib_example(
       ${libtap-bridge}
       ${libcsma}
 )
+
+build_lib_example(
+     NAME elora-example-two-channels
+     SOURCE_FILES elora-example-two-channels.cc
+     LIBRARIES_TO_LINK
+      ${libelora}
+      ${libtap-bridge}
+      ${libcsma}
+)
+

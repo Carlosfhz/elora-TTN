@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2022 Orange SA
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Alessandro Aimi <alessandro.aimi@orange.com>
  *                         <alessandro.aimi@cnam.fr>
@@ -30,6 +41,7 @@ namespace lorawan
 enum M2MDeviceGroups
 {
     All,
+    JustPoisson,// Added by carlos
     InHouse,
     Commercial
 };
@@ -44,6 +56,8 @@ class UrbanTrafficHelper
     ApplicationContainer Install(NodeContainer c) const;
 
     ApplicationContainer Install(Ptr<Node> node) const;
+    int64_t DoAssignStreams(int64_t stream);
+    void DoAssignInterval(int64_t stream);
 
     void SetDeviceGroups(M2MDeviceGroups groups);
 
@@ -51,6 +65,8 @@ class UrbanTrafficHelper
     Ptr<Application> InstallPriv(Ptr<Node> node) const;
 
     Ptr<UniformRandomVariable> m_intervalProb;
+    int64_t interval_period=360;
+    bool m_Only_Poisson=false;
 
     std::vector<double> m_cdf;
 };

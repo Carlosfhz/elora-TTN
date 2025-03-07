@@ -1,7 +1,18 @@
 /*
  * Copyright (c) 2022 Orange SA
  *
- * SPDX-License-Identifier: GPL-2.0-only
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Author: Alessandro Aimi <alessandro.aimi@orange.com>
  *                         <alessandro.aimi@cnam.fr>
@@ -9,6 +20,7 @@
 
 #include "udp-forwarder-helper.h"
 
+#include "ns3/csma-net-device.h"
 #include "ns3/double.h"
 #include "ns3/log.h"
 #include "ns3/lora-net-device.h"
@@ -17,7 +29,10 @@
 #include "ns3/string.h"
 #include "ns3/trace-source-accessor.h"
 #include "ns3/udp-forwarder.h"
-#include "ns3/udp-socket-factory.h"
+//added by me 
+#include "ns3/object.h"
+#include "ns3/traced-value.h"
+#include "ns3/trace-source-accessor.h"
 
 namespace ns3
 {
@@ -33,6 +48,8 @@ UdpForwarderHelper::UdpForwarderHelper()
 
 UdpForwarderHelper::~UdpForwarderHelper()
 {
+    delete m_packetTracker_2;
+
 }
 
 void
@@ -51,7 +68,7 @@ ApplicationContainer
 UdpForwarderHelper::Install(NodeContainer c) const
 {
     ApplicationContainer apps;
-    for (auto i = c.Begin(); i != c.End(); ++i)
+    for (NodeContainer::Iterator i = c.Begin(); i != c.End(); ++i)
     {
         apps.Add(InstallPriv(*i));
     }
@@ -62,28 +79,61 @@ Ptr<Application>
 UdpForwarderHelper::InstallPriv(Ptr<Node> node) const
 {
     NS_LOG_FUNCTION(this << node);
-    // Check if node supports UDP sockets
-    NS_ASSERT_MSG(node->GetObject<UdpSocketFactory>(), "UDP protocol not installed on input node");
     Ptr<UdpForwarder> app = m_factory.Create<UdpForwarder>();
+    //Added by me
+    //Added by me 
     app->SetNode(node);
     node->AddApplication(app);
-    // Link the Forwarder to the GatewayLorawanMac
-    bool foundLoraNetDevice = false;
+    // Link the Forwarder to the NetDevice and GatewayLorawanMac
     for (uint32_t i = 0; i < node->GetNDevices(); i++)
     {
-        if (auto loraNetDev = DynamicCast<LoraNetDevice>(node->GetDevice(i)); loraNetDev)
+        Ptr<NetDevice> currNetDev = node->GetDevice(i);
+        if (auto loraNetDev = DynamicCast<LoraNetDevice>(currNetDev); loraNetDev != nullptr)
         {
             auto mac = DynamicCast<GatewayLorawanMac>(loraNetDev->GetMac());
-            NS_ASSERT_MSG(mac, "Gateway LoRaWAN MAC layer not found in LoraNetDevice");
+            NS_ASSERT(bool(mac));
             app->SetGatewayLorawanMac(mac);
             mac->SetReceiveCallback(MakeCallback(&UdpForwarder::ReceiveFromLora, app));
-            foundLoraNetDevice = true;
-            break;
+            
+
+        }
+        else if (DynamicCast<CsmaNetDevice>(currNetDev))
+        {
+            continue;
+        }
+        else
+        {
+            NS_LOG_ERROR("Potential error: NetDevice is neither Lora nor Csma");
         }
     }
-    NS_ASSERT_MSG(foundLoraNetDevice, "LoraNetDevice not installed on input node");
+
+    if (m_packetTracker_2){
+        app->TraceConnectWithoutContext("CorrectSchedule", MakeCallback(&LoraPacketTracker::IntTrace_correct,m_packetTracker_2));
+        app->TraceConnectWithoutContext("ConcentratorTxLoss", MakeCallback(&LoraPacketTracker::IntTrace_Tx_loss,m_packetTracker_2));
+    
+        app->TraceConnectWithoutContext("CorrectTx", MakeCallback(&LoraPacketTracker::IntTrace_correct_Tx,m_packetTracker_2));
+
+    }
     return app;
 }
+
+
+void
+UdpForwarderHelper::EnablePacketTracking()
+{
+    NS_LOG_FUNCTION(this);
+
+    // Create the packet tracker
+    m_packetTracker_2 = new LoraPacketTracker();
+}
+
+    LoraPacketTracker& UdpForwarderHelper::GetPacketTracker()
+{
+    NS_LOG_FUNCTION(this);
+
+    return *m_packetTracker_2;
+}
+
 
 } // namespace lorawan
 } // namespace ns3

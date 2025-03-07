@@ -1,7 +1,7 @@
 # Tip: use 'find . -follow -type f -name *.cc' to help complete this
 
 set(source_files
-    model/app/server/network-server.cc
+   model/app/server/network-server.cc
     model/app/server/network-scheduler.cc
     model/app/server/network-status.cc
     model/app/server/gateway-status.cc
@@ -42,6 +42,7 @@ set(source_files
     model/range-position-allocator.cc
     model/correlated-shadowing-propagation-loss-model.cc
     model/building-penetration-loss.cc
+    model/coutad-loss.cc
     helper/lorawan-helper.cc
     helper/lora-packet-tracker.cc
     helper/lorawan-mac-helper.cc
@@ -108,6 +109,7 @@ set(header_files
     model/range-position-allocator.h
     model/correlated-shadowing-propagation-loss-model.h
     model/building-penetration-loss.h
+    model/coutad-loss.h
     helper/lorawan-helper.h
     helper/lora-packet-tracker.h
     helper/lorawan-mac-helper.h
